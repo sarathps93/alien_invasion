@@ -7,6 +7,7 @@ from bullet import Bullet
 from alien import Alien
 from game_stats import GameStats
 from button import Button
+from scoreboard import Scoreboard
 
 class AlienInvasion:
     def __init__(self):
@@ -15,6 +16,7 @@ class AlienInvasion:
         self.screen = pygame.display.set_mode((self.settings.screen_width, self.settings.screen_height))
         pygame.display.set_caption("Alien Invasion")
         self.stats = GameStats(self)
+        self.sb = Scoreboard(self)
         self.ship = Ship(self)
         self.bullets = pygame.sprite.Group()
         self.aliens = pygame.sprite.Group()
@@ -97,6 +99,8 @@ class AlienInvasion:
         for bullet in self.bullets.sprites():
             bullet.draw_bullet()
         self.aliens.draw(self.screen)
+        # Draw the score information
+        self.sb.show_score()
         # Draw the play button if the screen is inactive
         if not self.stats.game_active:
             self.play_button.draw_button()
@@ -115,10 +119,15 @@ class AlienInvasion:
     def _check_bullet_alien_collision(self):
         # Check if any bullets have hit the aliens. if so remove the bullet and the alien
         collisions = pygame.sprite.groupcollide(self.bullets, self.aliens, True, True)
+        if collisions:
+            for aliens in collisions.values():
+                self.stats.score += self.settings.alien_points * len(aliens)            
+            self.sb.prep_score()
         if not self.aliens:
             # Destroy exiting bullets and create new feet
             self.bullets.empty()
             self._create_fleet()
+            self.settings.increase_speed()
 
     def _update_aliens(self):
         self._check_fleet_edges()
@@ -167,11 +176,13 @@ class AlienInvasion:
     def _check_play_button(self, mouse_pos):
         button_clicked = self.play_button.rect.collidepoint(mouse_pos)
         if button_clicked and not self.stats.game_active:
+            self.settings.initialize_dynamic_settings()
             # Hide the mouse cursor
             pygame.mouse.set_visible(False)
             # Reset game statistics
             self.stats.reset_stats()
             self.stats.game_active = True
+            self.sb.prep_score()
             # Get rid of aliens and bullets remaining
             self.aliens.empty()
             self.bullets.empty()
